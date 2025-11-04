@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=To-Cellismo Converter
+Comment=シングルセル解析ファイルをh5mu形式に変換
+Exec=/home/bdkoki/デスクトップ/csv_h5mu/start.sh
+Icon=/home/bdkoki/デスクトップ/csv_h5mu/static/icon.png
+Terminal=true
+Categories=Science;Education;
+Keywords=biology;single-cell;bioinformatics;h5mu;converter;
