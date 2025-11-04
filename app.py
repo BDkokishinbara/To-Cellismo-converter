@@ -107,8 +107,10 @@ def convert():
         upload_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{unique_name}.{file_extension}")
         file.save(upload_path)
 
-        # Generate output filename
-        output_filename = f"{generate_unique_filename('converted')}.h5mu"
+        # Generate output filename based on original filename
+        # Remove extension from original filename
+        original_basename = filename.rsplit('.', 1)[0] if '.' in filename else filename
+        output_filename = f"convert_{original_basename}.h5mu"
         output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
 
         # Convert based on file type
