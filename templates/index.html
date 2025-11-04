@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シングルセル解析ファイル変換 - CSV/RDS/MEX to h5mu</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧬 シングルセル解析ファイル変換ツール</h1>
+            <p>CSV、RDS、MEXファイルをh5mu形式に変換</p>
+        </header>
+
+        <div class="main-content">
+            <div class="upload-section">
+                <h2>ファイルアップロード</h2>
+
+                <div class="file-type-selector">
+                    <label>ファイル形式:</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="file_type" value="csv" checked>
+                            <span>CSV (遺伝子細胞マトリクス)</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="file_type" value="rds">
+                            <span>RDS (Seurat/SingleCellExperiment) <span class="badge">開発中</span></span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="file_type" value="mex">
+                            <span>MEX (10x Genomics) - ZIPファイル</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="file-upload">
+                    <input type="file" id="fileInput" accept=".csv,.rds,.mtx,.tsv,.gz,.zip" style="display: none;">
+                    <div class="upload-area" id="uploadArea">
+                        <div class="upload-icon">📁</div>
+                        <p>クリックまたはドラッグ&ドロップでファイルを選択</p>
+                        <p class="file-info">対応形式: CSV, RDS, MEX</p>
+                    </div>
+                    <div id="fileInfo" class="file-info-display" style="display: none;">
+                        <p><strong>選択されたファイル:</strong> <span id="fileName"></span></p>
+                        <p><strong>サイズ:</strong> <span id="fileSize"></span></p>
+                    </div>
+                </div>
+
+                <!-- CSV specific options -->
+                <div class="options-section" id="csvOptions">
+                    <h3>CSV変換オプション</h3>
+                    <div class="option-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="transpose" name="transpose">
+                            <span>マトリックスを転置 (遺伝子×細胞 → 細胞×遺伝子)</span>
+                        </label>
+                    </div>
+                    <div class="option-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="hasHeader" name="has_header" checked>
+                            <span>1行目をヘッダー（細胞名）として扱う</span>
+                        </label>
+                    </div>
+                    <div class="option-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="hasIndex" name="has_index" checked>
+                            <span>1列目をインデックス（遺伝子名）として扱う</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button id="convertBtn" class="btn btn-primary" disabled>
+                        <span class="btn-icon">🔄</span> h5muに変換
+                    </button>
+                </div>
+            </div>
+
+            <div class="status-section">
+                <div id="statusMessage" class="status-message" style="display: none;"></div>
+                <div id="progressBar" class="progress-bar" style="display: none;">
+                    <div class="progress-fill"></div>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <h3>ℹ️ 使い方</h3>
+                <ol>
+                    <li>変換したいファイル形式を選択</li>
+                    <li>ファイルをアップロード（ドラッグ&ドロップまたはクリック）</li>
+                    <li>必要に応じて変換オプションを設定</li>
+                    <li>「h5muに変換」ボタンをクリック</li>
+                    <li>変換完了後、自動的にダウンロードが開始されます</li>
+                </ol>
+
+                <h3>📋 対応ファイル形式</h3>
+                <ul>
+                    <li><strong>CSV:</strong> 遺伝子×細胞または細胞×遺伝子のマトリックスファイル</li>
+                    <li><strong>RDS:</strong> SeuratオブジェクトまたはSingleCellExperimentオブジェクト（Rとrpy2が必要）</li>
+                    <li><strong>MEX:</strong> 10x Genomics形式の疎行列ファイル（matrix.mtx, features.tsv, barcodes.tsvをZIPで圧縮）</li>
+                </ul>
+
+                <h3>🎯 h5mu形式について</h3>
+                <p>h5muはMuDataフォーマットで、マルチモーダルなシングルセル解析データを効率的に保存できます。Python（mudata、scanpy）やR（MuData）で利用可能です。</p>
+            </div>
+        </div>
+
+        <footer>
+            <p>Single-cell Analysis File Converter v1.0</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

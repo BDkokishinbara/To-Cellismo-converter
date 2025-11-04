@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# Environment
+.env
+
+# Flask
+instance/
+.webassets-cache
+
+# Uploads and outputs
+uploads/*
+!uploads/.gitkeep
+outputs/*
+!outputs/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data files
+*.h5mu
+*.h5ad
+*.rds
+*.mtx
+*.zip
+
+# Keep sample data
+!sample_data.csv
+
+# Test files
+test_*.py
+test_*.h5mu
+*_test_*.h5mu
+
+# Logs
+*.log
+/tmp/*
