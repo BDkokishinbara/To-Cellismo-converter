@@ -11,7 +11,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const fileSize = document.getElementById('fileSize');
     const statusMessage = document.getElementById('statusMessage');
     const progressBar = document.getElementById('progressBar');
-    const csvOptions = document.getElementById('csvOptions');
+    const csvOptions = document.getElementById('csvOptionsSection');
+    const removeFileBtn = document.getElementById('removeFileBtn');
+    const statusSection = document.getElementById('statusSection');
     const fileTypeRadios = document.querySelectorAll('input[name="file_type"]');
 
     // File type change handler
@@ -69,6 +71,23 @@ document.addEventListener('DOMContentLoaded', function() {
             convertFile();
         }
     });
+
+    // Remove file button click handler
+    if (removeFileBtn) {
+        removeFileBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            resetFileSelection();
+        });
+    }
+
+    // Browse button click handler
+    const btnBrowse = document.querySelector('.btn-browse');
+    if (btnBrowse) {
+        btnBrowse.addEventListener('click', function(e) {
+            e.stopPropagation();
+            fileInput.click();
+        });
+    }
 
     function handleFileSelect(file) {
         if (!file) return;
@@ -160,11 +179,17 @@ document.addEventListener('DOMContentLoaded', function() {
         statusMessage.textContent = message;
         statusMessage.className = 'status-message ' + type;
         statusMessage.style.display = 'block';
+        if (statusSection) {
+            statusSection.style.display = 'block';
+        }
     }
 
     function hideStatus() {
         statusMessage.style.display = 'none';
         progressBar.style.display = 'none';
+        if (statusSection) {
+            statusSection.style.display = 'none';
+        }
     }
 
     function formatFileSize(bytes) {

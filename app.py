@@ -15,6 +15,7 @@ from converters.rds_converter import rds_to_h5mu, check_rpy2_available
 from converters.mex_converter import mex_to_h5mu, validate_mex_directory
 import shutil
 import zipfile
+import tarfile
 
 # Load environment variables
 load_dotenv()
@@ -28,11 +29,14 @@ app.config['OUTPUT_FOLDER'] = os.getenv('OUTPUT_FOLDER', 'outputs')
 app.config['MAX_CONTENT_LENGTH'] = int(os.getenv('MAX_CONTENT_LENGTH', 500 * 1024 * 1024))
 
 # Allowed file extensions
-ALLOWED_EXTENSIONS = {'csv', 'rds', 'mtx', 'tsv', 'gz', 'zip'}
+ALLOWED_EXTENSIONS = {'csv', 'rds', 'mtx', 'tsv', 'gz', 'zip', 'tar'}
 
 
 def allowed_file(filename):
     """Check if file extension is allowed"""
+    # Check for .tar.gz files
+    if filename.lower().endswith('.tar.gz'):
+        return True
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
@@ -137,13 +141,35 @@ def convert():
             os.remove(upload_path)
 
         elif file_type == 'mex':
-            # MEX files can be uploaded as a zip file or individual files
-            # If it's a zip, extract it first
-            if file_extension == 'gz':
+            # MEX files can be uploaded as zip or tar.gz file
+            # Check if it's a tar.gz file
+            if filename.lower().endswith('.tar.gz'):
+                # Extract tar.gz file
+                extract_dir = os.path.join(app.config['UPLOAD_FOLDER'], unique_name + '_extracted')
+                os.makedirs(extract_dir, exist_ok=True)
+                with tarfile.open(upload_path, 'r:gz') as tar_ref:
+                    tar_ref.extractall(extract_dir)
+
+                # Find MEX directory (might be in a subdirectory)
+                mex_dir = find_mex_directory(extract_dir)
+                if not mex_dir:
+                    shutil.rmtree(extract_dir)
+                    os.remove(upload_path)
+                    return jsonify({
+                        'error': 'TAR.GZファイル内にMEXファイル（matrix.mtx、features.tsv、barcodes.tsv）が見つかりません。'
+                    }), 400
+
+                mex_to_h5mu(mex_dir, output_path)
+
+                # Clean up
+                shutil.rmtree(extract_dir)
+                os.remove(upload_path)
+
+            elif file_extension == 'gz':
                 # This might be a single .mtx.gz or .tsv.gz file
                 # For MEX, we need a directory with multiple files
                 return jsonify({
-                    'error': 'MEXファイルは、matrix.mtx、features.tsv、barcodes.tsvを含むZIPファイルとしてアップロードしてください。'
+                    'error': 'MEXファイルは、matrix.mtx、features.tsv、barcodes.tsvを含むZIPまたはTAR.GZファイルとしてアップロードしてください。'
                 }), 400
             elif file_extension == 'zip':
                 # Extract zip file
@@ -168,7 +194,7 @@ def convert():
                 os.remove(upload_path)
             else:
                 return jsonify({
-                    'error': 'MEXファイルはZIP形式でアップロードしてください。'
+                    'error': 'MEXファイルはZIPまたはTAR.GZ形式でアップロードしてください。'
                 }), 400
 
         else:
