@@ -8,6 +8,40 @@ import numpy as np
 from pathlib import Path
 
 
+def detect_seqgeq_format(csv_path):
+    """
+    Detect if CSV is in SeqGeq format (with [Metadata] and [Data] sections)
+
+    Parameters:
+    -----------
+    csv_path : str
+        Path to CSV file
+
+    Returns:
+    --------
+    int or None : Number of rows to skip if SeqGeq format, None otherwise
+    """
+    try:
+        with open(csv_path, 'r') as f:
+            lines = []
+            for i, line in enumerate(f):
+                lines.append(line.strip())
+                # Only check first 20 lines to avoid reading entire file
+                if i >= 20:
+                    break
+
+            # Check for SeqGeq format
+            if len(lines) > 0 and lines[0] == '[Metadata]':
+                # Look for [Data] section
+                for j, line in enumerate(lines):
+                    if line == '[Data]':
+                        # Skip up to and including [Data] line
+                        return j + 1
+        return None
+    except Exception:
+        return None
+
+
 def csv_to_h5mu(csv_path, output_path, transpose=False, has_header=True, has_index=True):
     """
     Convert CSV file to h5mu format
@@ -30,13 +64,18 @@ def csv_to_h5mu(csv_path, output_path, transpose=False, has_header=True, has_ind
     str : Path to the created h5mu file
     """
     try:
+        # Check for SeqGeq format
+        skiprows = detect_seqgeq_format(csv_path)
+        if skiprows:
+            print(f"Detected SeqGeq format, skipping {skiprows} metadata rows")
+
         # Read CSV file
         print(f"Reading CSV file: {csv_path}")
 
         if has_index:
-            df = pd.read_csv(csv_path, index_col=0)
+            df = pd.read_csv(csv_path, index_col=0, skiprows=skiprows)
         else:
-            df = pd.read_csv(csv_path)
+            df = pd.read_csv(csv_path, skiprows=skiprows)
 
         print(f"CSV shape: {df.shape}")
 
@@ -82,8 +121,11 @@ def validate_csv(csv_path):
     dict : Information about the CSV file
     """
     try:
+        # Check for SeqGeq format
+        skiprows = detect_seqgeq_format(csv_path)
+
         # Read first few rows to check format
-        df_preview = pd.read_csv(csv_path, nrows=5)
+        df_preview = pd.read_csv(csv_path, nrows=5, skiprows=skiprows)
 
         info = {
             'rows': len(df_preview),

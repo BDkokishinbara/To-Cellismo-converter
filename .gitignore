@@ -43,6 +43,10 @@ Thumbs.db
 # Keep sample data
 !sample_data.csv
 
+# Large demo files
+SeqGeq_demo.csv
+SeqGeq_demo.h5mu
+
 # Test files
 test_*.py
 test_*.h5mu
