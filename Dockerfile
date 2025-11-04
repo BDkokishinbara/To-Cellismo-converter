@@ -1,5 +1,5 @@
-# Multi-stage build for smaller image size
-FROM python:3.11-slim as base
+# Dockerfile for Hugging Face Spaces
+FROM python:3.11-slim
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -30,12 +30,8 @@ COPY . .
 RUN mkdir -p uploads outputs && \
     chmod 755 uploads outputs
 
-# Expose port
-EXPOSE 5000
+# Expose port 7860 (Hugging Face Spaces requirement)
+EXPOSE 7860
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:5000/', timeout=2)" || exit 1
-
-# Run with gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "300", "--access-logfile", "-", "--error-logfile", "-", "app:app"]
+# Run with gunicorn on port 7860
+CMD ["gunicorn", "--bind", "0.0.0.0:7860", "--workers", "2", "--timeout", "300", "--access-logfile", "-", "--error-logfile", "-", "app:app"]
