@@ -14,6 +14,7 @@
                 <p class="subtitle">シングルセル解析ファイルをh5mu形式に簡単変換</p>
                 <div class="format-badges">
                     <span class="badge-format">CSV</span>
+                    <span class="badge-format">h5ad</span>
                     <span class="badge-format">RDS</span>
                     <span class="badge-format">MEX</span>
                     <span class="badge-arrow">→</span>
@@ -32,13 +33,37 @@
 
                 <div class="file-type-selector">
                     <label class="file-type-card">
-                        <input type="radio" name="file_type" value="csv" checked>
+                        <input type="radio" name="file_type" value="auto" checked>
+                        <div class="card-content">
+                            <div class="card-icon">✨</div>
+                            <h3>自動</h3>
+                            <p>拡張子から判定</p>
+                            <div class="card-info">
+                                <small>一括変換に最適</small>
+                            </div>
+                        </div>
+                    </label>
+
+                    <label class="file-type-card">
+                        <input type="radio" name="file_type" value="csv">
                         <div class="card-content">
                             <div class="card-icon">📊</div>
                             <h3>CSV</h3>
                             <p>カウントマトリックス</p>
                             <div class="card-info">
                                 <small>SeqGeq形式自動認識</small>
+                            </div>
+                        </div>
+                    </label>
+
+                    <label class="file-type-card">
+                        <input type="radio" name="file_type" value="h5ad">
+                        <div class="card-content">
+                            <div class="card-icon">🧪</div>
+                            <h3>h5ad</h3>
+                            <p>AnnData</p>
+                            <div class="card-info">
+                                <small>Scanpy/AnnData</small>
                             </div>
                         </div>
                     </label>
@@ -74,8 +99,15 @@
                     <h2>ファイルをアップロード</h2>
                 </div>
 
+                <div class="batch-toggle">
+                    <label class="batch-toggle-label">
+                        <input type="checkbox" id="batchMode">
+                        <span>複数ファイルを一括変換する（結果はZIPでダウンロード）</span>
+                    </label>
+                </div>
+
                 <div class="file-upload">
-                    <input type="file" id="fileInput" accept=".csv,.rds,.mtx,.tsv,.gz,.zip,.tar" style="display: none;">
+                    <input type="file" id="fileInput" accept=".csv,.h5ad,.rds,.mtx,.tsv,.gz,.zip,.tar" style="display: none;">
                     <div class="upload-area" id="uploadArea">
                         <div class="upload-icon">
                             <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -84,7 +116,7 @@
                                 <line x1="12" y1="3" x2="12" y2="15"></line>
                             </svg>
                         </div>
-                        <p class="upload-text">ファイルをドラッグ&ドロップ</p>
+                        <p class="upload-text" id="uploadText">ファイルをドラッグ&ドロップ</p>
                         <p class="upload-subtext">または</p>
                         <button type="button" class="btn-browse">ファイルを選択</button>
                     </div>
@@ -96,6 +128,11 @@
                         </div>
                         <button type="button" class="btn-remove" id="removeFileBtn">✕</button>
                     </div>
+                    <ul id="fileList" class="file-list" style="display: none;"></ul>
+                    <div id="fileListActions" class="file-list-actions" style="display: none;">
+                        <button type="button" class="btn-browse" id="addMoreBtn">ファイルを追加</button>
+                        <button type="button" class="btn-link" id="clearAllBtn">すべて削除</button>
+                    </div>
                 </div>
             </section>
 
@@ -106,18 +143,11 @@
                     <h2>変換オプション</h2>
                 </div>
 
+                <p class="muted" style="margin-bottom: 0.75rem;">
+                    🔄 <strong>転置は自動判定</strong>します — 遺伝子名（ACTB, CD3D, ENSG... など）が
+                    どの軸にあるかを検出して、必要に応じて自動で転置します。判定結果は変換後のメッセージに表示されます。
+                </p>
                 <div class="options-grid">
-                    <label class="option-card">
-                        <input type="checkbox" id="transpose" name="transpose">
-                        <div class="option-content">
-                            <div class="option-icon">🔄</div>
-                            <div class="option-text">
-                                <h4>転置</h4>
-                                <p>遺伝子×細胞 → 細胞×遺伝子</p>
-                            </div>
-                        </div>
-                    </label>
-
                     <label class="option-card checked">
                         <input type="checkbox" id="hasHeader" name="has_header" checked>
                         <div class="option-content">
@@ -139,10 +169,31 @@
                             </div>
                         </div>
                     </label>
+
+                    <!-- Hidden override: empty by default = auto; advanced users can use API directly -->
+                    <input type="hidden" id="transpose" name="transpose" value="auto">
                 </div>
             </section>
 
-            <!-- Step 4: Convert Button -->
+            <!-- UMAP option -->
+            <section class="step-card" id="umapOptionSection">
+                <div class="step-header">
+                    <span class="step-number">4</span>
+                    <h2>UMAP 可視化（オプション）</h2>
+                </div>
+                <label class="option-card" id="umapOptionCard">
+                    <input type="checkbox" id="makeUmap" name="make_umap">
+                    <div class="option-content">
+                        <div class="option-icon">🌐</div>
+                        <div class="option-text">
+                            <h4>変換と同時に UMAP も作成する</h4>
+                            <p>scanpyで標準的な前処理（filter → normalize → log1p → HVG → PCA → neighbors → Leiden）を行い、UMAP の PNG を生成します。一括変換時はオフ推奨。</p>
+                        </div>
+                    </div>
+                </label>
+            </section>
+
+            <!-- Convert Button -->
             <section class="convert-section">
                 <button id="convertBtn" class="btn-convert" disabled>
                     <span class="btn-icon">
@@ -153,8 +204,9 @@
                     </span>
                     <span class="btn-text">h5mu に変換</span>
                 </button>
-                <p class="convert-note">出力: <code>convert_元のファイル名.h5mu</code></p>
+                <p class="convert-note" id="convertNote">出力: <code>convert_元のファイル名.h5mu</code></p>
             </section>
+
 
             <!-- Status Section -->
             <div id="statusSection" class="status-section" style="display: none;">
@@ -172,6 +224,9 @@
                 <dl class="info-list">
                     <dt>📊 CSV</dt>
                     <dd>遺伝子×細胞または細胞×遺伝子のマトリックス<br><strong>SeqGeq形式を自動認識</strong></dd>
+
+                    <dt>🧪 h5ad</dt>
+                    <dd>AnnData形式のシングルセルデータ<br>Scanpyなどで保存したファイルをそのまま変換</dd>
 
                     <dt>📦 RDS</dt>
                     <dd>SeuratまたはSingleCellExperimentオブジェクト<br>※ Rとrpy2が必要</dd>
@@ -209,7 +264,7 @@
         </aside>
 
         <footer>
-            <p>To-Cellismo Converter v1.1 | MIT License</p>
+            <p>To-Cellismo Converter v1.2 | MIT License</p>
         </footer>
     </div>
 

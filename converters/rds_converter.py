@@ -77,9 +77,12 @@ def rds_to_h5mu(rds_path, output_path, object_type='auto'):
         # Create MuData object
         mdata = md.MuData({'rna': adata})
 
-        # Save as h5mu
+        # Save as h5mu (gzip-compressed to keep file size reasonable)
         print(f"Saving to: {output_path}")
-        mdata.write(output_path)
+        try:
+            mdata.write(output_path, compression='gzip')
+        except TypeError:
+            mdata.write(output_path)
 
         print("Conversion completed successfully!")
         return output_path
