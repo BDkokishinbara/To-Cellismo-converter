@@ -1,5 +1,10 @@
 """
-MEX (10x Genomics) to h5mu converter for single-cell analysis data
+MEX (10x Genomics) → h5mu 変換モジュール
+
+10x Genomics の MEX 形式（matrix.mtx + features.tsv + barcodes.tsv の
+3 ファイルからなるスパース行列）を読み込んで h5mu (MuData) 形式に変換する。
+複数の feature type が混在する場合（例: Gene Expression + Antibody
+Capture）は、それぞれ別のモダリティとして MuData に格納する。
 """
 import numpy as np
 import pandas as pd
@@ -11,42 +16,43 @@ import gzip
 
 
 def mex_to_h5mu(mex_dir, output_path, genome=None):
-    """
-    Convert MEX format (10x Genomics) to h5mu format
+    """MEX 形式（10x Genomics）を h5mu 形式に変換する。
 
-    MEX format consists of:
-    - matrix.mtx (or matrix.mtx.gz): sparse matrix in Matrix Market format
-    - genes.tsv (or features.tsv.gz): gene/feature information
-    - barcodes.tsv (or barcodes.tsv.gz): cell barcode information
+    MEX 形式は以下の 3 ファイルで構成される:
+      - matrix.mtx (または matrix.mtx.gz) : Matrix Market 形式のスパース行列
+      - features.tsv (または genes.tsv とその .gz 版) : 遺伝子・フィーチャー情報
+      - barcodes.tsv (または barcodes.tsv.gz) : 細胞バーコード情報
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     mex_dir : str
-        Path to directory containing MEX files
+        MEX 形式のファイル群を含むディレクトリのパス。
     output_path : str
-        Path to output h5mu file
+        出力 h5mu ファイルのパス。
     genome : str, optional
-        Genome name (e.g., 'GRCh38') if multiple genomes present
+        複数ゲノムが含まれる場合のゲノム名（例: 'GRCh38'）。
+        ※ 現状未使用。将来の拡張用。
 
-    Returns:
-    --------
-    str : Path to the created h5mu file
+    Returns
+    -------
+    str
+        作成された h5mu ファイルのパス。
     """
     try:
         print(f"Reading MEX files from: {mex_dir}")
         mex_path = Path(mex_dir)
 
-        # Find matrix file
+        # 行列ファイルを探す
         matrix_file = find_file(mex_path, ['matrix.mtx.gz', 'matrix.mtx'])
         if not matrix_file:
             raise FileNotFoundError("Matrix file (matrix.mtx or matrix.mtx.gz) not found")
 
-        # Find features/genes file
+        # フィーチャー / 遺伝子ファイルを探す（10x v3 は features、v2 は genes）
         features_file = find_file(mex_path, ['features.tsv.gz', 'features.tsv', 'genes.tsv.gz', 'genes.tsv'])
         if not features_file:
             raise FileNotFoundError("Features/genes file not found")
 
-        # Find barcodes file
+        # バーコードファイルを探す
         barcodes_file = find_file(mex_path, ['barcodes.tsv.gz', 'barcodes.tsv'])
         if not barcodes_file:
             raise FileNotFoundError("Barcodes file not found")
@@ -56,74 +62,73 @@ def mex_to_h5mu(mex_dir, output_path, genome=None):
         print(f"  Features: {features_file.name}")
         print(f"  Barcodes: {barcodes_file.name}")
 
-        # Read matrix
+        # 行列の読み込み
         print("Reading matrix...")
         matrix = mmread(matrix_file)
-        # Convert to CSR format for efficient row operations
+        # 行方向の操作を高速化するため CSR 形式に変換
         matrix = matrix.tocsr()
         print(f"Matrix shape: {matrix.shape}")
 
-        # Read features/genes
+        # フィーチャー（遺伝子）情報の読み込み
         print("Reading features...")
         features_df = read_tsv(features_file)
 
-        # Handle different feature file formats
+        # 列数に応じて 10x のバージョンを判定
         if features_df.shape[1] >= 3:
-            # 10x Genomics v3 format: gene_id, gene_name, feature_type
+            # 10x Genomics v3 形式: gene_id, gene_name, feature_type
             features_df.columns = ['gene_id', 'gene_name', 'feature_type'][:features_df.shape[1]]
         elif features_df.shape[1] == 2:
-            # 10x Genomics v2 format: gene_id, gene_name
+            # 10x Genomics v2 形式: gene_id, gene_name
             features_df.columns = ['gene_id', 'gene_name']
         else:
-            # Single column: gene_id only
+            # 1 列のみ: gene_id だけ
             features_df.columns = ['gene_id']
 
-        # Use gene_name as index if available, otherwise gene_id
+        # var_names として gene_name を優先（無ければ gene_id）
         if 'gene_name' in features_df.columns:
             var_names = features_df['gene_name'].astype(str).values
         else:
             var_names = features_df['gene_id'].astype(str).values
 
-        # Read barcodes
+        # バーコードの読み込み
         print("Reading barcodes...")
         barcodes_df = read_tsv(barcodes_file, header=None)
         barcodes = barcodes_df[0].astype(str).values
 
-        # Create AnnData object
+        # AnnData を作成
         print("Creating AnnData object...")
-        # Matrix is genes x cells, need to transpose to cells x genes
+        # MEX の行列は (遺伝子 × 細胞) なので、AnnData が期待する (細胞 × 遺伝子) に転置する
         adata = ad.AnnData(X=matrix.T)
 
-        # Set observation (cell) names
+        # obs（細胞）の名前を設定
         adata.obs_names = barcodes
 
-        # Set variable (gene) names
+        # var（遺伝子）の名前を設定
         adata.var_names = var_names
 
-        # Add feature metadata
+        # フィーチャーのメタデータを var に追記
         for col in features_df.columns:
             adata.var[col] = features_df[col].values
 
-        # Add basic QC metrics
+        # 基本的な QC 指標を追加
         adata.obs['n_counts'] = np.array(adata.X.sum(axis=1)).flatten()
         adata.obs['n_genes'] = np.array((adata.X > 0).sum(axis=1)).flatten()
         adata.var['n_cells'] = np.array((adata.X > 0).sum(axis=0)).flatten()
 
         print(f"Created AnnData object: {adata.shape[0]} cells x {adata.shape[1]} genes")
 
-        # Filter by feature type if multiple types present
+        # 複数の feature_type が含まれている場合はモダリティ別に分割する
         if 'feature_type' in adata.var.columns:
             feature_types = adata.var['feature_type'].unique()
             print(f"Feature types found: {feature_types}")
 
-            # Create separate modalities for different feature types
             modalities = {}
 
             for feat_type in feature_types:
                 mask = adata.var['feature_type'] == feat_type
                 adata_subset = adata[:, mask].copy()
 
-                # Map feature type to modality name
+                # feature_type を MuData のモダリティ名にマッピング
                 if feat_type == 'Gene Expression':
                     mod_name = 'rna'
                 elif feat_type == 'Antibody Capture':
@@ -136,15 +141,18 @@ def mex_to_h5mu(mex_dir, output_path, genome=None):
                 modalities[mod_name] = adata_subset
                 print(f"  {feat_type}: {adata_subset.shape[1]} features -> '{mod_name}' modality")
 
-            # Create MuData with multiple modalities
+            # 複数モダリティを持つ MuData を作成
             mdata = md.MuData(modalities)
         else:
-            # Single modality (RNA)
+            # 単一モダリティ（RNA）として保存
             mdata = md.MuData({'rna': adata})
 
-        # Save as h5mu
+        # h5mu として書き出す（ファイルサイズ抑制のため gzip 圧縮）
         print(f"Saving to: {output_path}")
-        mdata.write(output_path)
+        try:
+            mdata.write(output_path, compression='gzip')
+        except TypeError:
+            mdata.write(output_path)
 
         print("Conversion completed successfully!")
         return output_path
@@ -154,19 +162,19 @@ def mex_to_h5mu(mex_dir, output_path, genome=None):
 
 
 def find_file(directory, filenames):
-    """
-    Find first matching file from a list of possible filenames
+    """候補ファイル名のリストから、最初に見つかったファイルのパスを返す。
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     directory : Path
-        Directory to search in
+        検索対象のディレクトリ。
     filenames : list
-        List of possible filenames
+        候補ファイル名のリスト（優先順）。
 
-    Returns:
-    --------
-    Path or None : Path to found file or None
+    Returns
+    -------
+    Path or None
+        見つかったファイルのパス。どれも無ければ None。
     """
     for filename in filenames:
         filepath = directory / filename
@@ -176,19 +184,19 @@ def find_file(directory, filenames):
 
 
 def read_tsv(filepath, header=None):
-    """
-    Read TSV file (handles both plain and gzipped files)
+    """TSV ファイルを読み込む。プレーン / gzip 圧縮の両方に対応。
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     filepath : Path
-        Path to TSV file
+        TSV ファイルのパス。
     header : int or None
-        Row number to use as header
+        ヘッダーとして扱う行番号。なしなら None。
 
-    Returns:
-    --------
-    DataFrame : Loaded dataframe
+    Returns
+    -------
+    pandas.DataFrame
+        読み込んだデータフレーム。
     """
     if filepath.suffix == '.gz':
         with gzip.open(filepath, 'rt') as f:
@@ -198,17 +206,17 @@ def read_tsv(filepath, header=None):
 
 
 def validate_mex_directory(mex_dir):
-    """
-    Validate MEX directory structure
+    """MEX ディレクトリの構造をチェックする。
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     mex_dir : str
-        Path to directory containing MEX files
+        MEX ファイル群を含むディレクトリのパス。
 
-    Returns:
-    --------
-    dict : Information about the MEX files
+    Returns
+    -------
+    dict
+        各ファイルの有無と検出ファイル名を含む情報辞書。
     """
     try:
         mex_path = Path(mex_dir)
@@ -219,7 +227,7 @@ def validate_mex_directory(mex_dir):
         if not mex_path.is_dir():
             raise NotADirectoryError(f"Not a directory: {mex_dir}")
 
-        # Check for required files
+        # 必要な 3 種のファイルがそろっているかチェック
         matrix_file = find_file(mex_path, ['matrix.mtx.gz', 'matrix.mtx'])
         features_file = find_file(mex_path, ['features.tsv.gz', 'features.tsv', 'genes.tsv.gz', 'genes.tsv'])
         barcodes_file = find_file(mex_path, ['barcodes.tsv.gz', 'barcodes.tsv'])

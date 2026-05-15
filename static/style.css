@@ -1,4 +1,7 @@
-/* Modern & Minimal Design - To-Cellismo Converter */
+/* To-Cellismo Converter のスタイルシート（モダン＆ミニマルデザイン）
+ * セクション構成: 共通変数 → ヘッダー → メイン → ファイル選択 →
+ * ファイルアップロード → オプション → 変換ボタン → ステータス →
+ * 情報パネル → フッター → バッチ用 → UMAP 用 → レスポンシブ → アニメーション */
 :root {
     --primary-color: #2563eb;
     --primary-hover: #1d4ed8;
@@ -39,7 +42,7 @@ body {
     padding: 2rem;
 }
 
-/* Header */
+/* ── ヘッダー（タイトル + フォーマットバッジ） ── */
 header {
     text-align: center;
     padding: 3rem 0 2rem;
@@ -90,7 +93,7 @@ header {
     color: var(--text-tertiary);
 }
 
-/* Main Content */
+/* ── メインコンテンツ（ステップカード） ── */
 .main-content {
     max-width: 900px;
     margin: 0 auto 2rem;
@@ -131,7 +134,7 @@ header {
     color: var(--text-primary);
 }
 
-/* File Type Selector */
+/* ── ファイル形式セレクタ（自動 / CSV / h5ad / RDS / MEX） ── */
 .file-type-selector {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -225,7 +228,7 @@ header {
     border-color: rgba(255, 255, 255, 0.3);
 }
 
-/* File Upload */
+/* ── ファイルアップロード（ドラッグ&ドロップ領域） ── */
 .file-upload {
     margin-top: 1rem;
 }
@@ -339,7 +342,7 @@ header {
     border-color: var(--error-color);
 }
 
-/* Options Grid */
+/* ── オプショングリッド（ヘッダー有無 / インデックス有無） ── */
 .options-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -393,7 +396,7 @@ header {
     color: var(--text-secondary);
 }
 
-/* Convert Section */
+/* ── 変換実行セクション（メインボタンと補足説明） ── */
 .convert-section {
     text-align: center;
     padding: 2rem 0;
@@ -446,7 +449,7 @@ header {
     font-size: 0.8125rem;
 }
 
-/* Status Section */
+/* ── ステータス領域（成功・エラーメッセージとプログレスバー） ── */
 .status-section {
     margin-top: 2rem;
     padding: 1.5rem;
@@ -502,7 +505,7 @@ header {
     }
 }
 
-/* Info Panel */
+/* ── サイド情報パネル（対応形式・h5mu の説明・関連リンク） ── */
 .info-panel {
     max-width: 900px;
     margin: 0 auto;
@@ -596,7 +599,7 @@ header {
     font-size: 1.25rem;
 }
 
-/* Footer */
+/* ── フッター ── */
 footer {
     text-align: center;
     padding: 2rem 0;
@@ -604,7 +607,174 @@ footer {
     font-size: 0.875rem;
 }
 
-/* Responsive */
+/* ── バッチモードのトグル ── */
+.batch-toggle {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 0.75rem;
+}
+
+.batch-toggle-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    user-select: none;
+}
+
+.batch-toggle-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary-color);
+    cursor: pointer;
+}
+
+/* ── 複数ファイル選択時のファイル一覧 ── */
+.file-list {
+    list-style: none;
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.file-list li {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0.875rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+}
+
+.file-list li .item-icon {
+    font-size: 1.25rem;
+}
+
+.file-list li .item-name {
+    flex: 1;
+    color: var(--text-primary);
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-list li .item-size {
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+}
+
+.file-list li .item-type-badge {
+    padding: 0.125rem 0.5rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 0.6875rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+}
+
+.file-list li .item-remove {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.file-list li .item-remove:hover {
+    background: var(--error-color);
+    color: white;
+    border-color: var(--error-color);
+}
+
+.file-list-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    margin-top: 0.75rem;
+}
+
+.btn-link {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 0.875rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.btn-link:hover {
+    color: var(--error-color);
+}
+
+/* ── UMAP オプション関連 ── */
+.muted {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+/* ── 変換完了後にインライン表示する UMAP プレビュー ── */
+.convert-umap-preview {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.convert-umap-preview img {
+    max-width: 100%;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    background: white;
+}
+
+/* ── バッチ変換の結果サマリ ── */
+.batch-summary {
+    margin-top: 1rem;
+    padding: 0.875rem 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+}
+
+.batch-summary ul {
+    margin: 0.5rem 0 0 1.25rem;
+    color: var(--text-secondary);
+}
+
+.batch-summary li.failed {
+    color: var(--error-color);
+}
+
+.batch-summary li.succeeded {
+    color: var(--success-color);
+}
+
+/* ── レスポンシブ調整（モバイル幅） ── */
 @media (max-width: 768px) {
     .container {
         padding: 1rem;
@@ -631,7 +801,7 @@ footer {
     }
 }
 
-/* Animations */
+/* ── アニメーション定義 ── */
 @keyframes fadeIn {
     from {
         opacity: 0;

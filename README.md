@@ -1,6 +1,6 @@
 # 🧬 To-Cellismo Converter
 
-シングルセル解析ファイルを簡単に変換！CSV/RDS/MEX から h5mu 形式への変換ツール
+シングルセル解析ファイルを簡単に変換！CSV / h5ad / RDS / MEX から h5mu 形式への変換ツール（**複数ファイル一括変換対応**）
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -23,48 +23,105 @@
 
 ---
 
-## 🚀 クイックスタート
+## 🚀 クイックスタート（IT初学者向け・推奨）
 
-初めて使う方向けの簡単3ステップ！
+**ダブルクリックするだけで動きます。お使いの PC の Python 環境は一切汚しません。**
 
 ### ステップ1: ダウンロード
+
+GitHub の「**Code**」ボタン → 「**Download ZIP**」でダウンロードして解凍してください。
+（コマンドラインに慣れている方は `git clone https://github.com/BDkokishinbara/To-Cellismo-converter.git` でも OK）
+
+### ステップ2: 起動スクリプトをダブルクリック
+
+| OS | ダブルクリックするファイル |
+|---|---|
+| **macOS** | `start.command` |
+| **Windows** | `start.bat` |
+| **Linux** | `start.sh` |
+
+> 💡 **macOS の方へ**: `.sh` ファイルは Cursor や VSCode などのエディタで開いてしまうため、macOS では必ず **`start.command`** をダブルクリックしてください。中身は `start.sh` と同じ動作をします。
+>
+> 初回ダブルクリック時に「**開発元を確認できないため開けません**」と表示された場合は、`start.command` を **右クリック → 開く → 開く** で許可してください（次回からは普通にダブルクリックで起動できます）。
+
+### それだけ！
+
+スクリプトが自動で:
+
+1. 専用の仮想環境（プロジェクト内 `.cellismo_venv/` フォルダ）を作成
+2. 必要なパッケージをそこにだけインストール
+3. アプリを起動し、ブラウザで **http://127.0.0.1:5050** を開く
+
+**システム側の Python やパッケージには一切手を加えません。**
+不要になったら、ダウンロードした **フォルダごと削除するだけで完全に元通り** になります。
+
+> 💡 **事前に必要なもの**: Python 3.8 以降だけ（https://www.python.org からインストール）。
+> Python さえ入っていれば、それ以外は起動スクリプトがすべて自動でセットアップします。
+
+停止するには、ターミナル（または黒い画面）で `Ctrl+C` を押してください。
+
+---
+
+### 🔁 2回目以降の起動
+
+**初回と全く同じ — `start.command`（macOS）／ `start.bat`（Windows）／ `start.sh`（Linux）をダブルクリックするだけです。**
+
+| 項目 | 初回起動 | 2回目以降 |
+|---|---|---|
+| 仮想環境の作成 | 自動で行う（数十秒） | スキップ（既にある） |
+| パッケージのインストール | 自動で行う（1〜数分） | スキップ |
+| アプリ起動 | 行う | 行う |
+| 起動までの時間 | 1〜数分 | **数秒** |
+
+つまり、2回目以降は **ダブルクリックして数秒待つとブラウザが開く** だけです。
+特別な操作は何も必要ありません。
+
+#### 停止のしかた
+
+- ターミナル（黒い画面）で `Ctrl+C`
+- または、Windows の場合はそのウィンドウを閉じる
+
+#### 完全にゼロから作り直したいとき
+
+何かおかしくなった、最初からやり直したい、というときは:
+
+1. プロジェクトフォルダの中の **`.cellismo_venv/` フォルダを削除**
+2. もう一度 `start.command` / `start.bat` / `start.sh` をダブルクリック
+
+→ 初回と同じように、仮想環境とパッケージが新しく作られます。
+
+> 💡 ホームフォルダや他のプロジェクトの `.venv` には影響しません。このアプリ専用の `.cellismo_venv` フォルダだけが対象です。
+
+#### パッケージを最新版に更新したいとき
+
 ```bash
-git clone https://github.com/BDkokishinbara/To-Cellismo-converter.git
-cd To-Cellismo-converter
+# プロジェクトフォルダで
+source .cellismo_venv/bin/activate            # macOS / Linux （Windows は .cellismo_venv\Scripts\activate）
+pip install --upgrade -r requirements.txt
 ```
 
-### ステップ2: インストール
+または、`.cellismo_venv/` フォルダを丸ごと削除してから起動スクリプトを実行し直しても OK です。
+
+---
+
+### ⌨️ 手動で起動したい場合（中〜上級者向け）
+
+仮想環境を自分で管理したい場合は次のように:
+
 ```bash
+# 仮想環境を作成して有効化
+python -m venv .venv
+source .venv/bin/activate            # macOS / Linux
+# .venv\Scripts\activate            # Windows
+
+# 依存パッケージをインストール（venv 内だけに入ります）
 pip install -r requirements.txt
-```
 
-### ステップ3: 起動
-
-#### 🖱️ 簡単起動（推奨）
-
-**Linux / macOS**:
-```bash
-./start.sh
-```
-または、ファイルマネージャーで `start.sh` をダブルクリック
-
-**Windows**:
-```
-start.bat
-```
-または、エクスプローラーで `start.bat` をダブルクリック
-
-起動スクリプトを使うと、自動的にブラウザが開きます！
-
-#### ⌨️ 手動起動
-
-```bash
+# 起動
 python app.py
 ```
 
-ブラウザで **http://127.0.0.1:5000** にアクセスして使い始めましょう！
-
-停止するには、ターミナルで `Ctrl+C` を押してください。
+ブラウザで **http://127.0.0.1:5050** にアクセスしてください。停止は `Ctrl+C`。
 
 ---
 
@@ -99,6 +156,12 @@ python app.py
   - 遺伝子×細胞（横に遺伝子、縦に細胞）
 - **特別対応**: SeqGeq形式（メタデータセクション付き）を自動認識
 
+### 🧪 h5ad形式
+- **説明**: AnnData (`.h5ad`) — Scanpy などで広く使われているシングルセルデータ形式
+- **使用例**: `sc.write('data.h5ad', adata)` で保存したファイル
+- **動作**: AnnData を `rna` モダリティとして MuData にラップして h5mu に書き出します
+- **注意**: 既存の `obs` / `var` メタデータはそのまま保持されます
+
 ### 📦 RDS形式
 - **説明**: R言語で保存されたオブジェクト
 - **使用例**: Seurat、SingleCellExperimentなどのRパッケージで作成されたデータ
@@ -118,35 +181,45 @@ python app.py
 
 ### 🔧 必要なもの
 
-- **Python 3.8以上**
-- **インターネット接続**（初回インストール時）
+- **Python 3.8以上**（https://www.python.org からインストール）
+- **インターネット接続**（初回インストール時のみ）
 
-### ステップ1: リポジトリをダウンロード
+### おすすめ: 起動スクリプトに任せる
+
+[クイックスタート](#-クイックスタートit初学者向け推奨)の通り、`start.sh`（macOS/Linux）または `start.bat`（Windows）をダブルクリックすれば、仮想環境の作成・パッケージのインストール・アプリ起動まで全自動で行われます。
+**特別な準備は何も要りません。**
+
+### 手動でインストールする場合（中〜上級者向け）
+
+仮想環境を作って、その中だけにパッケージを入れます（システムの Python は汚れません）。
 
 ```bash
-# GitHubからダウンロード
+# 1. リポジトリを取得
 git clone https://github.com/BDkokishinbara/To-Cellismo-converter.git
 cd To-Cellismo-converter
-```
 
-または、GitHubのページから「Code」→「Download ZIP」でダウンロードして解凍してください。
+# 2. プロジェクト専用の仮想環境を作成
+python -m venv .venv
 
-### ステップ2: 必要なパッケージをインストール
+# 3. 仮想環境を有効化
+source .venv/bin/activate            # macOS / Linux
+# .venv\Scripts\activate            # Windows
 
-```bash
-# 必要なPythonパッケージをインストール
+# 4. 仮想環境内に必要なパッケージをインストール
 pip install -r requirements.txt
 ```
 
-### ステップ3（オプション）: RDSファイル変換を使う場合
+> 💡 仮想環境は単なるフォルダ（`.venv/`）です。気に入らなければ削除するだけで元に戻ります。
 
-RDSファイルを変換したい場合は、追加でrpy2をインストールしてください：
+### オプション: RDSファイル変換を使う場合
+
+RDSファイルを変換したい場合は、追加で R 本体と rpy2 をインストールしてください：
 
 ```bash
 # Rのインストール（Ubuntuの場合）
 sudo apt-get install r-base r-base-dev
 
-# rpy2のインストール
+# 仮想環境を有効化したうえで（または起動スクリプトで一度起動した後で）
 pip install rpy2
 ```
 
@@ -160,11 +233,14 @@ pip install rpy2
 
 #### 1. アプリを起動
 
-```bash
-# プロジェクトのフォルダに移動
-cd To-Cellismo-converter
+**かんたん起動（推奨）**: `start.sh`（macOS/Linux）または `start.bat`（Windows）を**ダブルクリック**するだけ。
+初回は仮想環境の作成と依存インストールが入るので少し時間がかかります。2回目以降はすぐ起動します。
 
-# Flaskアプリを起動
+**手動起動（起動スクリプトが作った仮想環境を直接使う場合）**:
+
+```bash
+cd To-Cellismo-converter
+source .cellismo_venv/bin/activate    # macOS / Linux （Windows は .cellismo_venv\Scripts\activate）
 python app.py
 ```
 
@@ -172,25 +248,36 @@ python app.py
 
 ```
 Starting Single-cell File Converter Web Application...
-Access the application at: http://0.0.0.0:5000
+Access the application at: http://0.0.0.0:5050
 ```
 
 #### 2. ブラウザでアクセス
 
 ブラウザで以下のURLを開きます：
 
-**http://127.0.0.1:5000**
+**http://127.0.0.1:5050**
 
 #### 3. ファイルを変換
 
-1. **ファイル形式を選択**: CSV / RDS / MEX から選ぶ
-2. **ファイルをアップロード**: ドラッグ&ドロップまたはクリックして選択
-3. **オプションを設定**（CSVの場合）:
-   - **Transpose**: データが遺伝子×細胞の場合にチェック
+1. **ファイル形式を選択**: 自動 / CSV / h5ad / RDS / MEX から選ぶ
+   - **自動**: 拡張子から判定するモード。複数ファイル一括変換にも最適
+2. **（任意）複数ファイルを一括変換する**にチェック
+   - 複数ファイルをドラッグ&ドロップでまとめてアップロードできます
+   - 異なる形式（CSVとh5adなど）が混在していても、自動モードなら拡張子で振り分けて変換します
+3. **ファイルをアップロード**: ドラッグ&ドロップまたはクリックして選択
+4. **オプションを設定**（CSVの場合）:
+   - **🔄 転置は自動判定**: 遺伝子名（ACTB, CD3D, ENSG... など）が行と列のどちらにあるかを検出して、必要に応じて自動で転置します。判定結果は変換完了時に画面に表示されます
    - **Has header**: 1行目がヘッダー（細胞名）の場合にチェック（通常はオン）
    - **Has index**: 1列目がインデックス（遺伝子名）の場合にチェック（通常はオン）
-4. **「h5mu に変換」ボタンをクリック**
-5. **自動的にダウンロード開始**: `convert_元のファイル名.h5mu` という名前で保存されます
+5. **（任意）「変換と同時に UMAP も作成する」にチェック**
+   - scanpy で標準的な前処理（filter → normalize → log1p → HVG → PCA → neighbors → Leiden → UMAP）を実行
+   - 数十秒〜数分かかります。一括変換ではオフ推奨
+6. **「h5mu に変換」ボタンをクリック**
+7. **自動的にダウンロード開始**:
+   - 単一ファイル: `convert_元のファイル名.h5mu`
+   - 一括変換: `batch_<日時>_<ID>.zip`（中に各 `convert_*.h5mu` が含まれます）
+   - UMAP オン時: `convert_元のファイル名_umap.png` も同時に作成され、画面にプレビュー表示されます
+
 
 #### 4. アプリを停止
 
@@ -205,15 +292,17 @@ Access the application at: http://0.0.0.0:5000
 ```python
 from converters.csv_converter import csv_to_h5mu
 
-# 基本的な使い方
+# 基本的な使い方（転置は自動判定）
 csv_to_h5mu(
     csv_path='your_data.csv',
     output_path='output.h5mu',
-    transpose=False,      # 遺伝子×細胞の場合はTrue
-    has_header=True,      # ヘッダー行がある場合
-    has_index=True        # インデックス列がある場合
+    transpose='auto',     # 'auto'（既定）/ True / False
+    has_header=True,
+    has_index=True
 )
 ```
+
+返り値は dict で、`auto_detected` / `transpose_applied` / `detect_info` から判定根拠を確認できます。
 
 #### SeqGeq形式のCSVを変換
 
@@ -239,6 +328,17 @@ rds_to_h5mu(
     rds_path='seurat_object.rds',
     output_path='output.h5mu',
     object_type='auto'  # 'seurat' または 'sce' も指定可能
+)
+```
+
+#### h5adファイルの変換
+
+```python
+from converters.h5ad_converter import h5ad_to_h5mu
+
+h5ad_to_h5mu(
+    h5ad_path='data.h5ad',
+    output_path='output.h5mu'
 )
 ```
 
@@ -349,14 +449,36 @@ mdata <- readH5MU('convert_your_data.h5mu')
 
 ### ❌ よくあるエラーと対処法
 
-#### エラー1: `ModuleNotFoundError: No module named 'flask'`
+#### エラー0: pandas/numpy のビルドエラー（`_PyLong_AsByteArray`, `_PyDict_SetItem_KnownHash` などのエラーが出る）
 
-**原因**: 必要なパッケージがインストールされていない
+**原因**: お使いの Python が **最新すぎる**（例: Python 3.14）。古いバージョンの pandas/numpy はまだ Python 3.14 用のビルド済みファイル（wheel）を提供しておらず、ソースからビルドしようとして失敗します。
 
 **解決方法**:
-```bash
-pip install -r requirements.txt
-```
+
+1. プロジェクトフォルダ内の **`.cellismo_venv/` フォルダを削除**（失敗した仮想環境を片付ける）。
+   起動スクリプトを使っていれば自動で削除されているはずです。
+2. もう一度 `start.command` / `start.bat` をダブルクリック。
+   起動スクリプトは Python 3.13 / 3.12 / 3.11 を優先して使うので、それらが入っていればそちらが選ばれます。
+3. それでもダメな場合は、Python 3.13 など安定版をインストールしてください:
+   - macOS: `brew install python@3.13`
+   - Windows: https://www.python.org/downloads/ から Python 3.13 をインストール
+
+なお、本プロジェクトの `requirements.txt` はバージョン固定をゆるめてあるため、新しい Python でも対応する新バージョンの pandas/numpy が自動で選ばれるようになっています（古いバージョンに固執しません）。
+
+---
+
+#### エラー1: `ModuleNotFoundError: No module named 'flask'`
+
+**原因**: 必要なパッケージがインストールされていない、または仮想環境が有効化されていない
+
+**解決方法**:
+
+1. **起動スクリプトを使う方（一番簡単）**: `start.command`（macOS）／ `start.bat`（Windows）／ `start.sh`（Linux）をダブルクリックすれば自動でインストールされます。
+2. **手動起動の方**: 仮想環境を有効化してからインストールしてください。
+   ```bash
+   source .cellismo_venv/bin/activate    # macOS / Linux （Windows は .cellismo_venv\Scripts\activate）
+   pip install -r requirements.txt
+   ```
 
 #### エラー2: `ParserError: Error tokenizing data`
 
@@ -390,9 +512,26 @@ pip install rpy2
 chmod 755 uploads outputs
 ```
 
-#### エラー5: `Port 5000 already in use`
+#### エラー5: ブラウザで「**127.0.0.1 へのアクセスが拒否されました（HTTP ERROR 403）**」と出る
 
-**原因**: ポート5000が既に使用されている
+**原因**: macOS Monterey 以降は **AirPlay Receiver** がポート 5000 を占有しているため、アプリが起動できない、または AirPlay 側が代わりに 403 を返してしまうことがあります。
+
+**解決方法**: 本アプリは既定で **ポート 5050** を使うようになっています。`start.command` を最新版で実行すれば、ブラウザは自動的に http://127.0.0.1:5050 を開きます。
+
+もし古いバージョンのスクリプトを使っていた / 別のポートを試したい場合は:
+
+```bash
+# 別のポートを使用する（例: 8080）
+export PORT=8080
+python app.py
+```
+
+または、macOS の AirPlay Receiver を無効化することでもポート 5000 が解放されます:
+**システム設定 → 一般 → AirDrop と Handoff → AirPlay レシーバー** をオフ。
+
+#### エラー6: `Port XXXX already in use`
+
+**原因**: そのポートが既に他のプロセスに使われている
 
 **解決方法**:
 ```bash
@@ -407,7 +546,14 @@ python app.py
 
 ### Q1: どのくらいのファイルサイズまで対応していますか？
 
-**A**: デフォルトでは500MBまでです。`app.py`の`MAX_CONTENT_LENGTH`を変更することで調整できます。
+**A**: デフォルトでは **5 GB** までです。シングルセルの h5ad/h5mu は GB 級になることが多いため、余裕を持たせています。
+変更したい場合は環境変数 `MAX_CONTENT_LENGTH`（バイト単位）で指定できます。例:
+
+```bash
+# 10 GB に拡張
+export MAX_CONTENT_LENGTH=10737418240
+python app.py
+```
 
 ### Q2: SeqGeq形式とは何ですか？
 
@@ -432,7 +578,7 @@ python app.py
 
 ### Q6: 複数のファイルを一度に変換できますか？
 
-**A**: 現在は1つずつの変換のみ対応しています。複数のファイルを処理したい場合は、Pythonスクリプトでループ処理を書くことができます。
+**A**: はい。Webアプリで「複数ファイルを一括変換する」にチェックを入れて、複数ファイルをまとめてアップロードしてください。各ファイルが個別に変換され、結果は1つのZIPファイルにまとめてダウンロードされます。形式が混在していても、ファイル形式を「自動」にしておけば拡張子から判定されます。
 
 ### Q7: オフラインで使えますか？
 
@@ -448,26 +594,25 @@ python app.py
 
 ```
 To-Cellismo-converter/
-├── app.py                               # Flaskアプリケーション本体
-├── requirements.txt                     # 必要なPythonパッケージ
+├── app.py                               # Flask アプリケーション本体
+├── requirements.txt                     # 必要な Python パッケージ
 ├── README.md                            # このファイル
-├── start.sh                             # Linux/macOS用起動スクリプト
-├── start.bat                            # Windows用起動スクリプト
-├── To-Cellismo-Converter.desktop        # Linuxデスクトップアプリ設定
+├── start.command                        # macOS 用ダブルクリック起動
+├── start.sh                             # Linux 用起動スクリプト
+├── start.bat                            # Windows 用起動スクリプト
 ├── converters/                          # 変換ロジック
-│   ├── csv_converter.py                # CSV変換（SeqGeq対応）
-│   ├── rds_converter.py                # RDS変換
-│   └── mex_converter.py                # MEX変換
-├── templates/                           # HTMLテンプレート
+│   ├── csv_converter.py                # CSV 変換（SeqGeq 対応 / 自動転置判定）
+│   ├── h5ad_converter.py               # h5ad (AnnData) 変換
+│   ├── rds_converter.py                # RDS 変換
+│   ├── mex_converter.py                # MEX 変換
+│   └── umap_visualizer.py              # 変換後 UMAP 可視化
+├── templates/                           # HTML テンプレート
 │   └── index.html
-├── static/                              # CSS/JavaScript
+├── static/                              # CSS / JavaScript
 │   ├── style.css
 │   └── script.js
-├── demodata/                            # デモファイル
-│   ├── sample_data.csv                 # サンプルCSV
-│   └── GSM4630028_ccRCC1.tar.gz        # サンプルMEX (tar.gz)
 ├── uploads/                             # アップロードファイル一時保存
-└── outputs/                             # 変換後ファイル保存
+└── outputs/                             # 変換結果（h5mu / UMAP PNG）
 ```
 
 ---

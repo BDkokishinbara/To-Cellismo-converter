@@ -8,6 +8,8 @@ venv/
 env/
 ENV/
 .venv
+.venv/
+.cellismo_venv/
 
 # Environment
 .env
