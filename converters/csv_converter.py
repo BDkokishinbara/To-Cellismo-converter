@@ -1,5 +1,9 @@
 """
-CSV to h5mu converter for single-cell analysis data
+CSV → h5mu 変換モジュール
+
+シングルセル解析データのカウントマトリックス CSV を読み込んで、
+h5mu (MuData) 形式に変換する。SeqGeq 形式（メタデータセクション付き）
+の CSV と、行/列の自動転置判定にも対応している。
 """
 import re
 import pandas as pd
@@ -9,30 +13,31 @@ import numpy as np
 from pathlib import Path
 
 
-# ── Heuristics for auto-detecting which axis holds gene names ─────────────
+# ── 行/列のどちらに遺伝子名があるかを推定するためのヒューリスティック ──
 
-# Patterns that look like gene symbols / IDs.
+# 遺伝子の記号 / ID らしく見えるパターン
 _GENE_PATTERNS = [
-    # Uppercase human-style symbols: ACTB, CD3D, HLA-DRA, MT-ATP6, RPS4Y1, IFITM3
+    # ヒトの大文字表記の遺伝子記号: ACTB, CD3D, HLA-DRA, MT-ATP6, RPS4Y1, IFITM3 など
     re.compile(r'^[A-Z][A-Z0-9._-]{0,19}$'),
-    # Ensembl IDs across species: ENSG..., ENSMUSG..., ENSDARG..., etc.
+    # 各種生物の Ensembl ID: ENSG..., ENSMUSG..., ENSDARG... など
     re.compile(r'^ENS[A-Z]{0,3}[GTPR]\d{6,}'),
-    # Mouse-style mixed case: Actb, Cd3d, Ms4a1, Hbb-b1
+    # マウス由来の混合大小文字表記: Actb, Cd3d, Ms4a1, Hbb-b1 など
     re.compile(r'^[A-Z][a-z][a-zA-Z0-9.-]{1,18}$'),
-    # MGI accession IDs
+    # MGI（Mouse Genome Informatics）のアクセション ID
     re.compile(r'^MGI:\d+$'),
 ]
 
-# Patterns that look like single-cell barcodes (i.e. the axis is cells, not genes).
+# 細胞バーコードらしく見えるパターン（＝該当軸は細胞であって遺伝子ではない）
 _BARCODE_PATTERNS = [
-    # 10x Genomics style barcodes, optionally with -1 sample suffix
+    # 10x Genomics 形式のバーコード。任意で -1 等のサンプルサフィックス付き。
     re.compile(r'^[ACGTN]{12,24}(-\d+)?$'),
-    # Sample-prefixed barcodes: Sample1_AAACCTGAG..., Patient3-AAACCT...
+    # サンプル名プレフィックス付きのバーコード: Sample1_AAACCTGAG..., Patient3-AAACCT...
     re.compile(r'^[A-Za-z0-9]+[_-][ACGTN]{12,24}(-\d+)?$'),
 ]
 
 
 def _fraction_matching(labels, patterns):
+    """``labels`` のうち、``patterns`` のいずれかにマッチするものの割合を返す。"""
     if not labels:
         return 0.0
     n = sum(1 for s in (str(x) for x in labels) if any(p.match(s) for p in patterns))
@@ -40,17 +45,16 @@ def _fraction_matching(labels, patterns):
 
 
 def detect_transpose_needed(df, sample_size=500):
-    """
-    Decide whether ``df`` should be transposed to reach the canonical
-    (cells x genes) orientation expected by AnnData / scanpy / MuData.
+    """``df`` を AnnData / scanpy / MuData が期待する形（細胞 × 遺伝子）に
+    そろえるために転置が必要かどうかを判定する。
 
     Returns
     -------
-    (transpose : bool, info : dict)
-        ``transpose`` is True when the input has genes laid out as rows and
-        must be flipped so genes end up as columns (= ``var`` axis in AnnData).
-        ``info`` carries the diagnostic scores so the UI can show the user
-        why a decision was made.
+    (transpose, info) : (bool, dict)
+        ``transpose`` が True のときは、入力データが行=遺伝子の並びで、
+        列方向にひっくり返す必要がある（＝結果として行=細胞、列=遺伝子になる）。
+        ``info`` には判定根拠となったスコアが入っている。UI 側で
+        「なぜそう判断したか」を表示するために利用する。
     """
     rows = df.index[:sample_size].astype(str).tolist()
     cols = df.columns[:sample_size].astype(str).tolist()
@@ -68,17 +72,17 @@ def detect_transpose_needed(df, sample_size=500):
         'col_barcode_score': round(col_bc, 3),
     }
 
-    # Clear "genes in rows" signal: transpose to put cells in rows.
+    # 行に遺伝子名が明確に多い → 転置して行=細胞にする
     if row_gene > 0.30 and row_gene > col_gene + 0.10:
         info['reason'] = '行に遺伝子名が多く検出されたため転置（行=遺伝子 → 行=細胞）'
         return True, info
 
-    # Clear "genes in columns" signal: keep as-is.
+    # 列に遺伝子名が明確に多い → そのまま使う
     if col_gene > 0.30 and col_gene > row_gene + 0.10:
         info['reason'] = '列に遺伝子名が多く検出されたため転置せず'
         return False, info
 
-    # Barcode signal can also disambiguate.
+    # バーコードからも推定できる場合
     if col_bc > 0.50 and row_bc < 0.30:
         info['reason'] = '列に細胞バーコードが検出されたため転置（列=細胞 → 行=細胞）'
         return True, info
@@ -86,37 +90,39 @@ def detect_transpose_needed(df, sample_size=500):
         info['reason'] = '行に細胞バーコードが検出されたため転置せず'
         return False, info
 
-    # Fallback: assume the file is already in (cells x genes) form. This
-    # matches the most common pre-processed output and is the safer default.
+    # 明確な手掛かりが得られない場合は安全側（既に細胞×遺伝子の並びと仮定）にフォールバック。
+    # 多くの前処理済み出力はこの並びになっているため、デフォルトとして妥当。
     info['reason'] = '明確な手掛かりが得られなかったため既定（cells × genes）として扱い、転置せず'
     return False, info
 
 
 def detect_seqgeq_format(csv_path):
-    """
-    Detect if CSV is in SeqGeq format (with [Metadata] and [Data] sections)
+    """SeqGeq 形式の CSV か（[Metadata] と [Data] セクションを持つか）を判定する。
 
     Parameters
     ----------
     csv_path : str
-        Path to CSV file
+        判定対象 CSV のパス。
 
     Returns
     -------
     int or None
-        Number of rows to skip if SeqGeq format, None otherwise
+        SeqGeq 形式の場合は、本体データの直前までスキップすべき行数を返す。
+        SeqGeq 形式でない場合は None。
     """
     try:
         with open(csv_path, 'r') as f:
             lines = []
             for i, line in enumerate(f):
                 lines.append(line.strip())
+                # 最初の 20 行だけ見れば判定には十分。
                 if i >= 20:
                     break
 
             if len(lines) > 0 and lines[0] == '[Metadata]':
                 for j, line in enumerate(lines):
                     if line == '[Data]':
+                        # [Data] 行を含めてスキップする行数を返す
                         return j + 1
         return None
     except Exception:
@@ -124,33 +130,33 @@ def detect_seqgeq_format(csv_path):
 
 
 def csv_to_h5mu(csv_path, output_path, transpose='auto', has_header=True, has_index=True):
-    """
-    Convert CSV file to h5mu format.
+    """CSV ファイルを h5mu 形式に変換する。
 
     Parameters
     ----------
     csv_path : str
-        Path to input CSV file.
+        入力 CSV ファイルのパス。
     output_path : str
-        Path to output h5mu file.
+        出力 h5mu ファイルのパス。
     transpose : 'auto' | bool
-        ``'auto'`` (default): auto-detect orientation from row/column labels.
-        ``True`` forces a transpose, ``False`` forces no transpose.
+        ``'auto'`` （既定）の場合、行・列のラベルから遺伝子軸を自動判定する。
+        ``True`` を渡すと強制的に転置、``False`` を渡すと転置しない。
     has_header : bool
-        Treat first row as header (cell names) if True.
+        True なら 1 行目をヘッダー（細胞名）として扱う。
     has_index : bool
-        Treat first column as index (gene names) if True.
+        True なら 1 列目をインデックス（遺伝子名）として扱う。
 
     Returns
     -------
     dict
-        Keys:
-          - ``output_path``: written file path
-          - ``transpose_applied``: bool of whether a transpose was applied
-          - ``auto_detected``: bool, True when 'auto' was used
-          - ``detect_info``: diagnostic info from detection (when auto)
+        以下のキーを持つ辞書:
+          - ``output_path``: 書き出した h5mu のパス
+          - ``transpose_applied``: 実際に転置を適用したか
+          - ``auto_detected``: 自動判定モードだったか
+          - ``detect_info``: 自動判定時の根拠スコアと理由
     """
     try:
+        # SeqGeq 形式ならメタデータ行をスキップする
         skiprows = detect_seqgeq_format(csv_path)
         if skiprows:
             print(f"Detected SeqGeq format, skipping {skiprows} metadata rows")
@@ -163,7 +169,7 @@ def csv_to_h5mu(csv_path, output_path, transpose='auto', has_header=True, has_in
 
         print(f"CSV shape: {df.shape}")
 
-        # Decide transpose.
+        # 転置の要否を決定する
         auto_detected = False
         detect_info = {}
         if transpose == 'auto' or transpose is None:
@@ -185,19 +191,23 @@ def csv_to_h5mu(csv_path, output_path, transpose='auto', has_header=True, has_in
             df = df.T
             print(f"Transposed to: {df.shape}")
 
-        # Create AnnData object (cells x genes)
+        # AnnData オブジェクトを作成（細胞 × 遺伝子の並び）
         adata = ad.AnnData(X=df.values.astype(np.float32))
         adata.obs_names = df.index.astype(str)
         adata.var_names = df.columns.astype(str)
 
+        # 基本的なメタデータを追加
         adata.obs['n_counts'] = np.array(adata.X.sum(axis=1)).flatten()
         adata.var['n_cells'] = np.array((adata.X > 0).sum(axis=0)).flatten()
 
         print(f"Created AnnData object: {adata.shape[0]} cells x {adata.shape[1]} genes")
 
+        # 1 モダリティの MuData として包む
         mdata = md.MuData({'rna': adata})
 
         print(f"Saving to: {output_path}")
+        # gzip 圧縮でファイルサイズを抑える。古い mudata は compression
+        # 引数を取らないので、その場合は無圧縮で書き出す。
         try:
             mdata.write(output_path, compression='gzip')
         except TypeError:
@@ -217,7 +227,7 @@ def csv_to_h5mu(csv_path, output_path, transpose='auto', has_header=True, has_in
 
 
 def validate_csv(csv_path):
-    """Validate CSV file and return information about it."""
+    """CSV ファイルの形式を簡易チェックし、概要情報を返す。"""
     try:
         skiprows = detect_seqgeq_format(csv_path)
         df_preview = pd.read_csv(csv_path, nrows=5, skiprows=skiprows)

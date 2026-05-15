@@ -1,5 +1,6 @@
 """
-Verify the converted h5mu file
+変換後の h5mu ファイルを読み込んで、形状・メタデータ・データ型などを
+コンソールに表示する検証スクリプト。
 """
 import mudata as md
 

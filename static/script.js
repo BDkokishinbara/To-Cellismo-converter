@@ -1,4 +1,6 @@
-// Single-cell File Converter JavaScript
+// シングルセル解析ファイル変換ツールの JavaScript
+// ファイル選択 / ドラッグ&ドロップ / 単一・バッチ変換 / 検出結果表示 /
+// UMAP 進捗のポーリングなど、UI 側のロジック全般を担当する。
 
 let selectedFiles = [];
 let batchMode = false;
@@ -65,7 +67,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     fileInput.addEventListener('change', function (e) {
         handleFilesSelected(Array.from(e.target.files));
-        // Reset native input so selecting the same file again still triggers change
+        // 同じファイルを再選択しても change イベントが発火するように
+        // ネイティブの input の値をクリアしておく
         fileInput.value = '';
     });
 
@@ -134,7 +137,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!files || files.length === 0) return;
 
         if (batchMode) {
-            // Append, dedupe by name+size
+            // バッチモード時は追加。name + size で重複を排除する
             const key = (f) => f.name + ':' + f.size;
             const existing = new Set(selectedFiles.map(key));
             for (const f of files) {
@@ -144,7 +147,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
         } else {
-            // Single mode: only keep the first file
+            // 単一モード時は最初のファイルだけを保持する
             selectedFiles = [files[0]];
         }
 
@@ -166,7 +169,7 @@ document.addEventListener('DOMContentLoaded', function () {
         convertBtn.disabled = false;
 
         if (selectedFiles.length === 1 && !batchMode) {
-            // Single-file legacy view
+            // 単一ファイル時は従来のカード型ファイル情報を表示
             const f = selectedFiles[0];
             fileName.textContent = f.name;
             fileSize.textContent = formatFileSize(f.size);
@@ -174,7 +177,7 @@ document.addEventListener('DOMContentLoaded', function () {
             fileList.style.display = 'none';
             fileListActions.style.display = 'none';
         } else {
-            // Multi-file list view
+            // 複数ファイル時はリスト形式で表示
             fileInfo.style.display = 'none';
             fileList.innerHTML = '';
             selectedFiles.forEach((f, idx) => {
@@ -246,8 +249,8 @@ document.addEventListener('DOMContentLoaded', function () {
     function buildCommonForm() {
         const fd = new FormData();
         fd.append('file_type', getSelectedFileType());
-        // transpose: hidden input now holds 'auto' (default). When the backend
-        // sees 'auto' it runs the gene-name heuristic.
+        // transpose: hidden input は既定で 'auto' を持つ。
+        // バックエンドは 'auto' を受け取ると遺伝子名ヒューリスティックで自動判定する。
         const transposeEl = document.getElementById('transpose');
         const transposeVal = transposeEl ? (transposeEl.value || 'auto') : 'auto';
         fd.append('transpose', transposeVal);
@@ -261,8 +264,8 @@ document.addEventListener('DOMContentLoaded', function () {
     function convertSingle() {
         const formData = buildCommonForm();
         formData.append('file', selectedFiles[0]);
-        // Backwards-compatible single-file endpoint expects 'file_type' as a
-        // concrete type, but our backend now accepts 'auto' too.
+        // 後方互換: 旧来の単一ファイルエンドポイントは 'file_type' に具体的な
+        // 種別を期待するが、現在のバックエンドは 'auto' も受け付ける。
 
         const wantUmap = document.getElementById('makeUmap') && document.getElementById('makeUmap').checked;
         showStatus(wantUmap ? '変換 + UMAP を実行中...（数十秒〜数分かかります）' : '変換中...', 'info');
@@ -329,7 +332,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function startUmapJobPolling(jobId) {
-        // Build / show a live status panel for the running job.
+        // 実行中ジョブの状態を表示するライブパネルを構築 / 表示する。
         const old = document.getElementById('umapJobPanel');
         if (old) old.remove();
 
@@ -513,9 +516,9 @@ document.addEventListener('DOMContentLoaded', function () {
         options = options || {};
         setTimeout(() => {
             window.location.href = url;
-            // When a follow-up job (e.g. UMAP) is running we must keep the
-            // status section visible so the user can see its progress and
-            // the resulting image. Skip the auto reset in that case.
+            // UMAP のような後続ジョブが走っている間はステータス領域を
+            // 表示したままにしないと、進捗や完成画像が見られなくなる。
+            // その場合はリセット処理をスキップする。
             if (options.preserveStatus) return;
             setTimeout(() => {
                 resetFileSelection();
@@ -563,7 +566,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
     }
 
-    // Initial state
+    // 初期状態のセットアップ
     updateCsvOptionsVisibility();
     updateUploadUiMode();
 });

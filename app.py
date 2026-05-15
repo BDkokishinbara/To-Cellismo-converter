@@ -1,6 +1,8 @@
 """
-Single-cell file format converter web application
-Converts CSV, h5ad, RDS, and MEX files to h5mu format
+シングルセル解析ファイル変換ウェブアプリケーション
+
+CSV / h5ad / RDS / MEX のいずれかを h5mu 形式に変換する Flask アプリ。
+変換と並行して UMAP 可視化をバックグラウンドジョブで実行する機能も持つ。
 """
 from flask import Flask, render_template, request, send_file, jsonify
 import os
@@ -23,12 +25,12 @@ import threading
 import time
 from collections import OrderedDict
 
-# Load environment variables
+# .env ファイルから環境変数を読み込む（あれば）
 load_dotenv()
 
 app = Flask(__name__)
 
-# Configuration from environment variables
+# 環境変数から各種設定を取得（.env または OS の環境変数で上書き可能）
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 app.config['UPLOAD_FOLDER'] = os.getenv('UPLOAD_FOLDER', 'uploads')
 app.config['OUTPUT_FOLDER'] = os.getenv('OUTPUT_FOLDER', 'outputs')
@@ -36,47 +38,48 @@ app.config['OUTPUT_FOLDER'] = os.getenv('OUTPUT_FOLDER', 'outputs')
 # 必要なら MAX_CONTENT_LENGTH 環境変数（バイト単位）で上書き可能。
 app.config['MAX_CONTENT_LENGTH'] = int(os.getenv('MAX_CONTENT_LENGTH', 5 * 1024 * 1024 * 1024))
 
-# Allowed file extensions
+# アップロード可能な拡張子（.tar.gz は別途処理）
 ALLOWED_EXTENSIONS = {'csv', 'rds', 'mtx', 'tsv', 'gz', 'zip', 'tar', 'h5ad'}
 
 
 def allowed_file(filename):
-    """Check if file extension is allowed"""
-    # Check for .tar.gz files
+    """指定されたファイル名の拡張子が許可されているか判定する。"""
+    # .tar.gz は 2 段拡張子なので個別に判定
     if filename.lower().endswith('.tar.gz'):
         return True
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
 def generate_unique_filename(prefix='file'):
-    """Generate unique filename with timestamp"""
+    """タイムスタンプ + UUID で衝突しにくいファイル名を生成する。"""
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     unique_id = str(uuid.uuid4())[:8]
     return f"{prefix}_{timestamp}_{unique_id}"
 
 
 def find_mex_directory(root_dir):
-    """
-    Find directory containing MEX files (matrix.mtx, features/genes.tsv, barcodes.tsv)
+    """MEX 形式の必須ファイル群（matrix.mtx, features/genes.tsv, barcodes.tsv）
+    が含まれるディレクトリを探す。
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     root_dir : str
-        Root directory to search
+        検索の起点ディレクトリ。
 
-    Returns:
-    --------
-    str or None : Path to MEX directory or None if not found
+    Returns
+    -------
+    str or None
+        見つかれば該当ディレクトリのパス。無ければ None。
     """
     from converters.mex_converter import find_file
 
     root_path = Path(root_dir)
 
-    # Check root directory first
+    # まずは起点ディレクトリ直下をチェック
     if find_file(root_path, ['matrix.mtx', 'matrix.mtx.gz']):
         return str(root_path)
 
-    # Search subdirectories
+    # 見つからなければサブディレクトリを再帰的に探索
     for dirpath, dirnames, filenames in os.walk(root_dir):
         dir_path = Path(dirpath)
         if find_file(dir_path, ['matrix.mtx', 'matrix.mtx.gz']):
@@ -86,9 +89,12 @@ def find_mex_directory(root_dir):
 
 
 def _save_upload(file_storage):
-    """Save an uploaded FileStorage to UPLOAD_FOLDER under a unique name.
+    """アップロードされた FileStorage を UPLOAD_FOLDER に一意な名前で保存する。
 
-    Returns dict with original_name, upload_path, file_extension.
+    Returns
+    -------
+    dict
+        original_name / upload_path / file_extension を含む情報辞書。
     """
     filename = secure_filename(file_storage.filename)
     unique_name = generate_unique_filename('upload')
@@ -112,7 +118,8 @@ def _save_upload(file_storage):
 
 
 def _output_name_for(original_filename):
-    """convert_<basename>.h5mu — strips .tar.gz or last extension."""
+    """出力 h5mu のファイル名を生成する: ``convert_<basename>.h5mu`` 形式。
+    ``.tar.gz`` や最後の拡張子を取り除いてベース名を作る。"""
     base = original_filename
     if base.lower().endswith('.tar.gz'):
         base = base[:-7]
@@ -122,7 +129,7 @@ def _output_name_for(original_filename):
 
 
 def _infer_file_type(filename):
-    """Infer file_type from filename for auto-mode batch uploads."""
+    """一括変換の自動モード時に、拡張子からファイル種別を推定する。"""
     name = filename.lower()
     if name.endswith('.csv'):
         return 'csv'
@@ -136,10 +143,13 @@ def _infer_file_type(filename):
 
 
 def _run_conversion(upload_path, output_path, file_type, filename, file_extension, options):
-    """Run a single conversion. Raises Exception on failure with a JP message.
+    """単一ファイルの変換を実行する。失敗時は日本語メッセージ付きの例外を投げる。
 
-    Returns a dict of metadata about the conversion (e.g. auto-transpose
-    detection info). Empty dict when there is nothing extra to report.
+    Returns
+    -------
+    dict
+        変換に関する追加情報（自動転置判定の結果など）。
+        特に報告すべき情報がなければ空の dict。
     """
     extra_info = {}
     if file_type == 'csv':
@@ -212,17 +222,18 @@ def _run_conversion(upload_path, output_path, file_type, filename, file_extensio
     return extra_info
 
 
-# ── Background UMAP job tracking ──────────────────────────────────────────
-# UMAP can take minutes on large datasets. We run it on a worker thread and
-# expose its current stage via /umap_progress/<job_id> so the UI can show
-# live updates instead of leaving the user wondering if anything is happening.
+# ── バックグラウンド UMAP ジョブの管理 ────────────────────────────────────
+# 大きなデータでは UMAP 計算に数分かかるため、ワーカースレッドで実行し、
+# 現在のステージを /umap_progress/<job_id> 経由で UI に公開する。
+# ユーザーが「フリーズした」と誤解しないようリアルタイム更新を可能にする。
 
 _UMAP_JOBS_LOCK = threading.Lock()
 _UMAP_JOBS: 'OrderedDict[str, dict]' = OrderedDict()
-_UMAP_JOBS_MAX = 50
+_UMAP_JOBS_MAX = 50  # メモリリーク防止: 保持するジョブの最大件数
 
 
 def _job_set(job_id, **fields):
+    """既存ジョブのフィールドを安全に更新する。"""
     with _UMAP_JOBS_LOCK:
         job = _UMAP_JOBS.get(job_id)
         if job is None:
@@ -232,10 +243,11 @@ def _job_set(job_id, **fields):
 
 
 def _job_create():
+    """新しいジョブ ID を発行し、初期状態で登録する。"""
     job_id = str(uuid.uuid4())[:12]
     with _UMAP_JOBS_LOCK:
         if len(_UMAP_JOBS) >= _UMAP_JOBS_MAX:
-            # drop oldest
+            # 上限に達したら一番古いジョブから捨てる
             _UMAP_JOBS.popitem(last=False)
         _UMAP_JOBS[job_id] = {
             'status': 'running',
@@ -247,6 +259,7 @@ def _job_create():
 
 
 def _job_get(job_id):
+    """ジョブ情報のスナップショットを返す（lock で防御）。"""
     with _UMAP_JOBS_LOCK:
         job = _UMAP_JOBS.get(job_id)
         if job is None:
@@ -255,7 +268,9 @@ def _job_get(job_id):
 
 
 def _run_umap_job(job_id, h5mu_path, output_png_path):
+    """別スレッドで UMAP 計算を実行する本体。"""
     def progress_cb(msg):
+        # umap_visualizer が呼ぶコールバック。現在のステージ名を保存する。
         _job_set(job_id, stage=msg)
 
     try:
@@ -280,11 +295,12 @@ def _run_umap_job(job_id, h5mu_path, output_png_path):
 
 
 def _start_umap_job(h5mu_path, output_png_path):
+    """UMAP 計算をバックグラウンドスレッドで起動し、ジョブ ID を返す。"""
     job_id = _job_create()
     t = threading.Thread(
         target=_run_umap_job,
         args=(job_id, h5mu_path, output_png_path),
-        daemon=True,
+        daemon=True,  # メインプロセス終了時に道連れにする
     )
     t.start()
     return job_id
@@ -292,6 +308,7 @@ def _start_umap_job(h5mu_path, output_png_path):
 
 @app.errorhandler(413)
 def _too_large(_):
+    """MAX_CONTENT_LENGTH を超えた時に分かりやすい日本語メッセージを返す。"""
     limit_mb = app.config['MAX_CONTENT_LENGTH'] / (1024 * 1024)
     return jsonify({
         'error': f'ファイルが大きすぎます（上限 {limit_mb:.0f} MB）。'
@@ -301,13 +318,13 @@ def _too_large(_):
 
 @app.route('/')
 def index():
-    """Main page"""
+    """トップページ。"""
     return render_template('index.html')
 
 
 @app.route('/convert', methods=['POST'])
 def convert():
-    """Handle single file conversion"""
+    """単一ファイルの変換リクエストを処理する。"""
     upload_path = None
     try:
         if 'file' not in request.files:
@@ -324,7 +341,8 @@ def convert():
         if file_type in (None, '', 'auto'):
             file_type = _infer_file_type(file.filename) or 'csv'
 
-        # transpose accepts: 'auto' (default), 'true', 'false'.
+        # transpose は 'auto'（既定）/ 'true' / 'false' のいずれかを受け付ける。
+        # 'auto' のときは csv_converter 側で自動判定する。
         transpose_raw = request.form.get('transpose', 'auto')
         if transpose_raw in ('true', 'false'):
             transpose_val = transpose_raw == 'true'
@@ -369,9 +387,10 @@ def convert():
                 },
             }
 
-        # Optional: kick off UMAP as a background job so the UI can poll for
-        # live progress (PCA → neighbors → UMAP → Leiden → plot can take a
-        # few minutes on large datasets).
+        # オプション: UMAP をバックグラウンドジョブとして起動する。
+        # （大きなデータでは PCA → neighbors → UMAP → Leiden → plot で
+        # 数分かかるため、UI 側がポーリングして進捗を表示できるよう
+        # job_id を返す設計にしている。）
         if make_umap:
             try:
                 umap_filename = output_filename.replace('.h5mu', '_umap.png')
@@ -403,7 +422,7 @@ def convert():
 
 @app.route('/umap_progress/<job_id>')
 def umap_progress(job_id):
-    """Return the current state of a background UMAP job for UI polling."""
+    """UI のポーリング用エンドポイント: UMAP ジョブの現在状態を返す。"""
     job = _job_get(job_id)
     if job is None:
         return jsonify({'error': 'ジョブが見つかりません'}), 404
@@ -420,7 +439,7 @@ def umap_progress(job_id):
 
 @app.route('/preview/<filename>')
 def preview(filename):
-    """Inline image preview (used by the UI to show UMAP without download)."""
+    """インライン画像プレビュー用（UMAP をダウンロードせず画面表示する用途）。"""
     try:
         safe = secure_filename(filename)
         filepath = os.path.join(app.config['OUTPUT_FOLDER'], safe)
@@ -433,7 +452,7 @@ def preview(filename):
 
 @app.route('/convert_batch', methods=['POST'])
 def convert_batch():
-    """Convert multiple uploaded files and return them packed as a ZIP."""
+    """複数ファイルを一括変換し、ZIP にまとめてダウンロードリンクを返す。"""
     file_type_form = request.form.get('file_type', 'auto')
 
     transpose_raw = request.form.get('transpose', 'auto')
@@ -523,9 +542,9 @@ def convert_batch():
             for out_name, out_path in produced_outputs:
                 zf.write(out_path, arcname=out_name)
 
-        # Keep individual h5mu files in OUTPUT_FOLDER so the UMAP source
-        # dropdown can offer each of them.  The ZIP remains available as a
-        # one-click download for the whole batch.
+        # 個別の h5mu ファイルは OUTPUT_FOLDER に残しておく
+        # （ZIP はバッチ全体の一括ダウンロード用、個別ファイルは将来の
+        # 個別操作用に保持する）。
 
         return jsonify({
             'success': True,
@@ -545,7 +564,7 @@ def convert_batch():
 
 @app.route('/download/<filename>')
 def download(filename):
-    """Download converted file"""
+    """変換結果ファイルのダウンロードエンドポイント。"""
     try:
         filepath = os.path.join(app.config['OUTPUT_FOLDER'], secure_filename(filename))
         if not os.path.exists(filepath):
@@ -563,7 +582,7 @@ def download(filename):
 
 @app.route('/validate', methods=['POST'])
 def validate():
-    """Validate uploaded file"""
+    """アップロードファイルの簡易バリデーション（現状 CSV のみ実装）。"""
     try:
         if 'file' not in request.files:
             return jsonify({'error': 'ファイルが選択されていません'}), 400
@@ -572,14 +591,14 @@ def validate():
         if file.filename == '':
             return jsonify({'error': 'ファイルが選択されていません'}), 400
 
-        # Save temporarily
+        # 一時保存して中身を確認する
         filename = secure_filename(file.filename)
         unique_name = generate_unique_filename('validate')
         file_extension = filename.rsplit('.', 1)[1].lower()
         temp_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{unique_name}.{file_extension}")
         file.save(temp_path)
 
-        # Validate based on file type
+        # ファイル種別ごとに対応するバリデータを呼ぶ
         file_type = request.form.get('file_type', 'csv')
 
         if file_type == 'csv':
@@ -587,7 +606,7 @@ def validate():
         else:
             info = {'message': 'Validation not yet implemented for this file type'}
 
-        # Clean up
+        # 一時ファイルを削除
         os.remove(temp_path)
 
         return jsonify({'success': True, 'info': info})
@@ -596,20 +615,20 @@ def validate():
         return jsonify({'error': f'検証エラー: {str(e)}'}), 500
 
 
-# Create necessary directories on startup
+# アプリ起動時に必要なディレクトリを作成
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['OUTPUT_FOLDER'], exist_ok=True)
 
 
 if __name__ == '__main__':
-    # Get configuration from environment
-    # NOTE: macOS Monterey+ では AirPlay Receiver が port 5000 を使うため
-    # 既定では 5050 を使う。PORT 環境変数で上書き可能。
+    # 環境変数から設定を取得
+    # 注意: macOS Monterey 以降は AirPlay Receiver がポート 5000 を占有しているため、
+    # 既定は 5050 を使う。PORT 環境変数で上書き可能。
     port = int(os.getenv('PORT', 5050))
     host = os.getenv('HOST', '0.0.0.0')
     debug = os.getenv('FLASK_ENV', 'development') == 'development'
 
-    # Run the app
+    # Flask 開発サーバーを起動
     print("Starting Single-cell File Converter Web Application...")
     print(f"Access the application at: http://{host}:{port}")
     print(f"Debug mode: {debug}")

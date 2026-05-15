@@ -24,7 +24,7 @@
         </header>
 
         <div class="main-content">
-            <!-- Step 1: File Type Selection -->
+            <!-- ステップ 1: ファイル形式を選択 -->
             <section class="step-card">
                 <div class="step-header">
                     <span class="step-number">1</span>
@@ -92,7 +92,7 @@
                 </div>
             </section>
 
-            <!-- Step 2: File Upload -->
+            <!-- ステップ 2: ファイルをアップロード -->
             <section class="step-card">
                 <div class="step-header">
                     <span class="step-number">2</span>
@@ -136,7 +136,7 @@
                 </div>
             </section>
 
-            <!-- Step 3: Options (CSV only) -->
+            <!-- ステップ 3: 変換オプション（CSV 用） -->
             <section class="step-card" id="csvOptionsSection">
                 <div class="step-header">
                     <span class="step-number">3</span>
@@ -170,12 +170,13 @@
                         </div>
                     </label>
 
-                    <!-- Hidden override: empty by default = auto; advanced users can use API directly -->
+                    <!-- 隠し入力で transpose を 'auto' に固定。
+                         上級者は API 直叩きで true/false に上書き可能。 -->
                     <input type="hidden" id="transpose" name="transpose" value="auto">
                 </div>
             </section>
 
-            <!-- UMAP option -->
+            <!-- UMAP オプション（変換と同時に可視化を実行する） -->
             <section class="step-card" id="umapOptionSection">
                 <div class="step-header">
                     <span class="step-number">4</span>
@@ -193,7 +194,7 @@
                 </label>
             </section>
 
-            <!-- Convert Button -->
+            <!-- 変換実行ボタン -->
             <section class="convert-section">
                 <button id="convertBtn" class="btn-convert" disabled>
                     <span class="btn-icon">
@@ -208,7 +209,7 @@
             </section>
 
 
-            <!-- Status Section -->
+            <!-- ステータス表示領域（成功・エラーメッセージ + プログレスバー） -->
             <div id="statusSection" class="status-section" style="display: none;">
                 <div id="statusMessage" class="status-message"></div>
                 <div id="progressBar" class="progress-bar">
@@ -217,7 +218,7 @@
             </div>
         </div>
 
-        <!-- Info Panel -->
+        <!-- サイドの情報パネル（対応形式・h5mu の説明・関連リンク） -->
         <aside class="info-panel">
             <div class="info-card">
                 <h3>💡 対応形式</h3>

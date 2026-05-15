@@ -1,5 +1,6 @@
 """
-Compare input CSV and output h5mu to verify cell and gene counts match
+入力 CSV と出力 h5mu を比較して、細胞数・遺伝子数が一致しているか検証する。
+（変換結果のサニティチェック用のワンショットスクリプト）
 """
 import pandas as pd
 import mudata as md
@@ -12,7 +13,7 @@ print("="*80)
 print("Reading input CSV file (with skiprows=6 for SeqGeq format)...")
 print("="*80)
 
-# Read CSV with SeqGeq metadata rows skipped
+# SeqGeq 形式のメタデータ行（6 行）をスキップして CSV を読む
 df = pd.read_csv(csv_path, skiprows=6, index_col=0)
 
 print(f"CSV shape: {df.shape}")
@@ -38,7 +39,7 @@ print("\n" + "="*80)
 print("COMPARISON RESULTS")
 print("="*80)
 
-# Compare dimensions
+# 形状の比較
 cells_match = df.shape[0] == adata.n_obs
 genes_match = df.shape[1] == adata.n_vars
 
@@ -50,19 +51,19 @@ print(f"\n✓ Number of genes match: {genes_match}")
 print(f"  - CSV: {df.shape[1]}")
 print(f"  - h5mu: {adata.n_vars}")
 
-# Compare cell IDs
+# 細胞 ID の比較
 cell_ids_match = (df.index == adata.obs_names).all()
 print(f"\n✓ Cell IDs match: {cell_ids_match}")
 if not cell_ids_match:
     print(f"  First mismatched cell: CSV={df.index[0]}, h5mu={adata.obs_names[0]}")
 
-# Compare gene names
+# 遺伝子名の比較
 gene_names_match = (df.columns == adata.var_names).all()
 print(f"\n✓ Gene names match: {gene_names_match}")
 if not gene_names_match:
     print(f"  First mismatched gene: CSV={df.columns[0]}, h5mu={adata.var_names[0]}")
 
-# Compare data values (sample check - first 10x10)
+# データ値の比較（先頭 10x10 のサブマトリクスでサンプリングチェック）
 print(f"\n✓ Checking data values (first 10x10 submatrix)...")
 csv_sample = df.iloc[:10, :10].values.astype(np.float32)
 h5mu_sample = adata.X[:10, :10]

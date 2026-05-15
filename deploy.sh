@@ -1,5 +1,7 @@
 #!/bin/bash
-# Quick deployment script for VPS/Ubuntu servers
+# VPS / Ubuntu サーバー向けのクイックデプロイスクリプト
+# 仮想環境 → 依存インストール → systemd サービス → Nginx 設定 → ファイアウォール
+# までを一気に行う。本番運用想定。
 
 set -e
 
@@ -8,30 +10,30 @@ echo "Single-cell File Converter Deployment"
 echo "=========================================="
 echo ""
 
-# Check if running on Ubuntu/Debian
+# Ubuntu / Debian 上で実行されているかチェック
 if [ ! -f /etc/debian_version ]; then
     echo "This script is designed for Ubuntu/Debian systems."
     exit 1
 fi
 
-# Update system
+# システムを最新化
 echo "Updating system packages..."
 sudo apt update && sudo apt upgrade -y
 
-# Install required packages
+# 必要なパッケージをインストール
 echo "Installing required packages..."
 sudo apt install -y python3 python3-pip python3-venv git nginx
 
-# Get application directory
+# アプリケーションのインストール先を取得
 read -p "Enter installation directory [/opt/singlecell-converter]: " INSTALL_DIR
 INSTALL_DIR=${INSTALL_DIR:-/opt/singlecell-converter}
 
-# Create directory
+# ディレクトリ作成
 echo "Creating installation directory: $INSTALL_DIR"
 sudo mkdir -p $INSTALL_DIR
 sudo chown $USER:$USER $INSTALL_DIR
 
-# Clone or copy application
+# アプリケーションファイルを設置（git clone 済みなら既にあるはずなので、無ければコピー）
 if [ ! -f "$INSTALL_DIR/app.py" ]; then
     echo "Copying application files..."
     cp -r . $INSTALL_DIR/
@@ -39,22 +41,22 @@ fi
 
 cd $INSTALL_DIR
 
-# Create virtual environment
+# 仮想環境を作成
 echo "Creating virtual environment..."
 python3 -m venv venv
 source venv/bin/activate
 
-# Install dependencies
+# 依存パッケージをインストール
 echo "Installing Python dependencies..."
 pip install --upgrade pip
 pip install -r requirements.txt
 
-# Create .env file
+# .env ファイルを作成（無ければ）
 if [ ! -f .env ]; then
     echo "Creating .env file..."
     cp .env.example .env
 
-    # Generate secret key
+    # シークレットキーを生成
     SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
     sed -i "s/your-secret-key-here-change-this/$SECRET_KEY/" .env
     sed -i "s/FLASK_ENV=production/FLASK_ENV=production/" .env
@@ -62,11 +64,11 @@ if [ ! -f .env ]; then
     echo ".env file created. Please review and edit if needed."
 fi
 
-# Create necessary directories
+# 必要なディレクトリを作成（アップロード / 出力用）
 mkdir -p uploads outputs
 chmod 755 uploads outputs
 
-# Create systemd service
+# systemd サービスを作成（自動起動 + プロセス監視のため）
 echo "Creating systemd service..."
 sudo tee /etc/systemd/system/singlecell-converter.service > /dev/null <<EOF
 [Unit]
@@ -91,17 +93,17 @@ Restart=always
 WantedBy=multi-user.target
 EOF
 
-# Create log directory
+# ログディレクトリを作成
 sudo mkdir -p /var/log/singlecell-converter
 sudo chown $USER:$USER /var/log/singlecell-converter
 
-# Enable and start service
+# systemd サービスを有効化して起動
 echo "Enabling and starting service..."
 sudo systemctl daemon-reload
 sudo systemctl enable singlecell-converter
 sudo systemctl start singlecell-converter
 
-# Configure Nginx
+# Nginx をリバースプロキシとして設定
 echo "Configuring Nginx..."
 read -p "Enter your domain name (or IP address): " DOMAIN
 
@@ -127,17 +129,17 @@ server {
 }
 EOF
 
-# Enable Nginx site
+# Nginx サイトを有効化
 sudo ln -sf /etc/nginx/sites-available/singlecell-converter /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
 
-# Test Nginx configuration
+# Nginx 設定の検証（構文チェック）
 sudo nginx -t
 
-# Restart Nginx
+# Nginx を再起動して新設定を反映
 sudo systemctl restart nginx
 
-# Configure firewall
+# ファイアウォール (ufw) を設定
 echo "Configuring firewall..."
 sudo apt install -y ufw
 sudo ufw --force enable

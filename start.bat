@@ -4,7 +4,7 @@ setlocal enabledelayedexpansion
 
 REM To-Cellismo Converter - 起動スクリプト (Windows)
 REM このファイルをダブルクリックするだけでアプリが立ち上がります。
-REM 必要な Python パッケージはプロジェクト内 .venv\ にだけインストールされるため、
+REM 必要な Python パッケージはプロジェクト内 .cellismo_venv\ にだけインストールされるため、
 REM ユーザーのシステム Python は一切汚しません。
 
 echo =================================

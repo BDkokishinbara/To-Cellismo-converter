@@ -1,5 +1,6 @@
 """
-Convert SeqGeq_demo.csv to h5mu format
+SeqGeq_demo.csv を h5mu 形式に変換するワンショットスクリプト。
+（コマンドラインから直接実行する想定の検証用）
 """
 from converters.csv_converter import csv_to_h5mu
 import os
@@ -14,10 +15,10 @@ print(f"File size: {os.path.getsize(csv_path) / (1024*1024):.1f} MB")
 print()
 
 try:
-    # For SeqGeq format:
-    # - transpose=False (data is already cells x genes)
-    # - has_header=True (column names are gene names)
-    # - has_index=True (first column is cell IDs)
+    # SeqGeq 形式向けのオプション:
+    # - transpose=False ... 既に「細胞 × 遺伝子」の並びになっている
+    # - has_header=True ... 列名は遺伝子名
+    # - has_index=True ... 1 列目は細胞 ID
     csv_to_h5mu(
         csv_path=csv_path,
         output_path=output_path,

@@ -1,5 +1,6 @@
 """
-Verify the converted h5mu file from tar.gz MEX
+tar.gz 形式の MEX を変換して得た h5mu ファイルを検証するスクリプト。
+形状・メタデータ列・データ型などをコンソールに表示する。
 """
 import mudata as md
 
@@ -8,7 +9,7 @@ h5mu_path = "/home/bdkoki/デスクトップ/csv_h5mu/outputs/convert_GSM4630028
 print("Verifying converted h5mu file...")
 print(f"File: {h5mu_path}\n")
 
-# Load h5mu file
+# h5mu ファイルを読み込む
 mdata = md.read_h5mu(h5mu_path)
 
 print("=== MuData Summary ===")
