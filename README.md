@@ -594,27 +594,25 @@ python app.py
 
 ```
 To-Cellismo-converter/
-├── app.py                               # Flaskアプリケーション本体
-├── requirements.txt                     # 必要なPythonパッケージ
+├── app.py                               # Flask アプリケーション本体
+├── requirements.txt                     # 必要な Python パッケージ
 ├── README.md                            # このファイル
-├── start.sh                             # Linux/macOS用起動スクリプト
-├── start.bat                            # Windows用起動スクリプト
-├── To-Cellismo-Converter.desktop        # Linuxデスクトップアプリ設定
+├── start.command                        # macOS 用ダブルクリック起動
+├── start.sh                             # Linux 用起動スクリプト
+├── start.bat                            # Windows 用起動スクリプト
 ├── converters/                          # 変換ロジック
-│   ├── csv_converter.py                # CSV変換（SeqGeq対応）
+│   ├── csv_converter.py                # CSV 変換（SeqGeq 対応 / 自動転置判定）
 │   ├── h5ad_converter.py               # h5ad (AnnData) 変換
-│   ├── rds_converter.py                # RDS変換
-│   └── mex_converter.py                # MEX変換
-├── templates/                           # HTMLテンプレート
+│   ├── rds_converter.py                # RDS 変換
+│   ├── mex_converter.py                # MEX 変換
+│   └── umap_visualizer.py              # 変換後 UMAP 可視化
+├── templates/                           # HTML テンプレート
 │   └── index.html
-├── static/                              # CSS/JavaScript
+├── static/                              # CSS / JavaScript
 │   ├── style.css
 │   └── script.js
-├── demodata/                            # デモファイル
-│   ├── sample_data.csv                 # サンプルCSV
-│   └── GSM4630028_ccRCC1.tar.gz        # サンプルMEX (tar.gz)
 ├── uploads/                             # アップロードファイル一時保存
-└── outputs/                             # 変換後ファイル保存
+└── outputs/                             # 変換結果（h5mu / UMAP PNG）
 ```
 
 ---

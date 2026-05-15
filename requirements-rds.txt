@@ -1,2 +1,0 @@
-# Optional: RDS file support (requires R installation)
-rpy2==3.5.15
